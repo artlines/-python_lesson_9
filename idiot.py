@@ -1,5 +1,6 @@
 import random
-
+import os
+import json
 
 class Idiot:
     cards_deck, user_range, comp_range = {}, {'cards': {}, 'active': True}, {'cards': {},
@@ -11,39 +12,47 @@ class Idiot:
     cards_count_set = 6  # по сколько карт сдаём
     set_cards = {}  # все карты кона
     set_count = 0  # какой по счёту кон
+    data_source = 'data.json'
 
     def __init__(self):
+        if os.path.exists(self.data_source) and os.path.getsize(self.data_source) > 0:
+            self.load_data()
+
         for type in self.card_types:
             self.cards_deck[type] = list(self.cards_quality.keys())
 
-        print(f'\n__Тусуем колоду, раскидываем картишки: козырь {random.choice(self.card_types)}__\n')
+        print('\n[Ход игры]', f'__Тусуем колоду, раскидываем картишки__\n')
         self._new_set_init()
 
         # @todo определить, кто ходит - найти в картах самый маленький козырь
-        self.user_step()
+        try:
+            self.user_step()
+        except Exception as e:
+            print(e)
+            self.save_data()
+            exit(os.EX_SOFTWARE)
 
     # ход игрока
     def user_step(self):
-
         if len(self.user_range['cards'].keys()) == 0:
             print("___!!!__Вы выиграли!__!!!___")
-            exit(8)
+            exit(os.EX_OK)
 
         print("__Доступные карты__")
         for key, card in self.user_range['cards'].items():
-            print(key, '-', ' '.join(card['name']))
+            print(f'№{key}: {" ".join(card["name"])} - {card["quality"]}')
 
-        print("__Доступные действия__")
+        print("\n__Доступные действия__")
         for x, y in self.actions.items():
             print(f"{x} - {y}")
 
         set_action = 'Ваш ход' if self.user_range['active'] else 'Вы отбиваетесь'
-        step = input(f'\n{set_action}: выберите карту по номеру или действие ')
+        step = input(f'\n[Ход игры] {set_action}: выберите карту по номеру или действие ')
 
         # обработка ввода
         if step == 'n':
             if len(self.set_cards.keys()) > 0:
-                print('__Бито, следующий ход__')
+                print('[Ход игры]', '__Бито, следующий ход__')
                 self.set_cards.clear()
                 return self.user_step()
             else:
@@ -60,8 +69,15 @@ class Idiot:
         elif step.isdigit():
             key = int(step)
             if key in list(self.user_range['cards'].keys()):
-                self.set_cards[f"user_{self.set_count}"] = self.user_range['cards'].pop(key, None)
-                print('__Вы сходили картой__', self.set_cards)
+                user_card = self.user_range['cards'].pop(key, None)
+                self.set_cards[f"user_{self.set_count}"] = user_card
+                print(
+                    '[Ход игры]',
+                    '__Вы сходили картой__',
+                    f'{user_card["name"][0]}'
+                    f' {user_card["name"][1]}'
+                    f' - {user_card["quality"]}\n'
+                )
                 # Пользователь отбивается или ходит
                 if self.user_range['active']:
                     return self.comp_step()
@@ -77,10 +93,10 @@ class Idiot:
     # ход компьютера
     def comp_step(self):
         if len(self.comp_range['cards'].keys()) == 0:
-            print("___!!!__Компьтер выиграл!__!!!___")
-            exit(8)
+            print('[Ход игры]', "___!!!__Компьтер выиграл!__!!!___")
+            exit(os.EX_OK)
 
-        print('\n__Ходит компьютер__')
+        print('\n[Ход игры]', '__Ходит компьютер__')
         comp_cards = self.comp_range['cards']
 
         try:
@@ -93,9 +109,14 @@ class Idiot:
                     x for x in comp_cards.values() if
                     x['quality'] > user_card_quality and x['name'][1] == user_card_type
                 )
-                print('__Компьютер отбивается картой__', comp_card_answer)
+                print(
+                    '[Ход игры]',
+                    '__Компьютер отбивается картой__',
+                    f'{comp_card_answer["name"][0]}'
+                    f' {comp_card_answer["name"][1]}'
+                    f' - {comp_card_answer["quality"]}\n'
+                )
                 self.set_cards[f"comp_{self.set_count}"] = comp_card_answer
-                print('__Карты кона__', self.set_cards)
                 self._check_step()
 
             if self._new_set_init():
@@ -103,7 +124,7 @@ class Idiot:
                 comp_card = random.choice(list(self.comp_range['cards'].keys()))
                 set_card_key = f"comp_{self.set_count}"
                 self.set_cards[set_card_key] = self.comp_range['cards'].pop(comp_card, None)
-                print('__Компьютер сходил картой__')
+                print('[Ход игры]', '__Компьютер сходил картой__')
                 print(
                     f'{self.set_cards[set_card_key]["name"][0]}'
                     f' {self.set_cards[set_card_key]["name"][1]}'
@@ -112,7 +133,7 @@ class Idiot:
 
                 return self.user_step()
         except StopIteration:
-            print('__Нечем биться, компьютер берёт__')
+            print('[Ход игры]', '__Нечем биться, компьютер берёт__')
             self.comp_range['cards'].update({self.set_count: user_card})
             if self._new_set_init():
                 return self.user_step()
@@ -143,9 +164,6 @@ class Idiot:
         self._get_cards(self.comp_range)
         self.set_cards.clear()
 
-        print('Мои карты: ', self.user_range)
-        print('Карты компьютера: ', self.comp_range)
-        print('Колода: ', self.cards_deck)
         print('\n__Кон № {}__\n'.format(self.set_count))
 
         return True
@@ -175,10 +193,30 @@ class Idiot:
             # @todo добавить поддержку козырей
             raise Exception('Карта не бьётся по масти')
         elif is_quality and is_type:
-            print('Карта бита, следующий кон')
+            print('[Ход игры]', 'Карта бита, следующий кон')
             return True
 
         return False
+
+    # сохранить данные в файл
+    def save_data(self):
+        data = {}
+        with open(self.data_source, 'w', encoding='utf8') as file:
+            json_str = json.dumps(data, indent=4, ensure_ascii=False)
+            file.write(json_str)
+
+        return True
+
+    # прочитать данные из файла
+    def load_data(self):
+        fields = ['cards_deck', 'user_range', 'comp_range', 'card_types', 'set_cards', 'set_count']
+        with open(self.data_source) as file:
+            data = json.load(file)
+
+        for field in fields:
+            setattr(__class__, field, data['field'])
+            print('[load data]', getattr(__class__, field))
+        return True
 
 
 i = Idiot()
