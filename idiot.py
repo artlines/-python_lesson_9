@@ -1,11 +1,13 @@
-import random
 import os
+import random
 import json
 
 class Idiot:
-    cards_deck, user_range, comp_range = {}, {'cards': {}, 'active': True}, {'cards': {},
-                                                                             'active': False}  # колода, карты пользователя, карты компьютера
-    actions = {'n': 'бито, следующий ход', 't': 'не могу отбить, взял'}  # доступные опции; @todo перевести, подкинуть
+    __EX_OK__ = 0
+    __EX_SOFTWARE__ = 8
+
+    cards_deck, user_range, comp_range = {}, {'cards': {}, 'active': True}, {'cards': {}, 'active': False}  # колода, карты пользователя, карты компьютера
+    actions = {'n': 'бито, следующий ход', 't': 'не могу отбить, взял', 'd': 'завершить игру'}  # доступные опции; @todo перевести, подкинуть
     card_types = ['Черви', 'Бубны', 'Трефы', 'Пики']
     cards_quality = {'Шестёрка': 0, 'Семёрка': 1, 'Восьмёрка': 2, 'Девятка': 3, 'Десятка': 4, 'Валет': 5, 'Дама': 6,
                      'Король': 7, 'Туз': 8}
@@ -28,15 +30,15 @@ class Idiot:
         try:
             self.user_step()
         except Exception as e:
-            print(e)
+            print('[Ошибка]', e)
             self.save_data()
-            exit(os.EX_SOFTWARE)
+            exit(self.__EX_SOFTWARE__)
 
     # ход игрока
     def user_step(self):
         if len(self.user_range['cards'].keys()) == 0:
-            print("___!!!__Вы выиграли!__!!!___")
-            exit(os.EX_OK)
+            print('[Ход игры]', "___!!!__Вы выиграли!__!!!___")
+            exit(self.__EX_OK__)
 
         print("__Доступные карты__")
         for key, card in self.user_range['cards'].items():
@@ -57,6 +59,10 @@ class Idiot:
                 return self.user_step()
             else:
                 raise Exception('Нет карт для сброса')
+        elif step == 'd':
+            print('[Ход игры]', "Игра закончена")
+            open(self.data_source, 'w').close()
+            exit(self.__EX_OK__)
         elif step == 't':
             if len(self.set_cards.keys()) > 0:
                 print('__Взял__', self.user_range['cards'])
@@ -86,6 +92,7 @@ class Idiot:
                         self.user_range['active'], self.comp_range['active'] = True, False
                         return self.user_step()
             else:
+                print(self.user_range['cards'])
                 raise Exception('У Вас нет такой карты!')
         else:
             raise Exception('Не нашлось доступного действия: пожалуйста, повторите')
@@ -200,7 +207,14 @@ class Idiot:
 
     # сохранить данные в файл
     def save_data(self):
-        data = {}
+        data = {
+            'cards_deck': self.cards_deck,
+            'user_range': self.user_range,
+            'comp_range': self.comp_range,
+            'card_types': self.card_types,
+            'set_cards' : self.set_cards,
+            'set_count' : self.set_count
+        }
         with open(self.data_source, 'w', encoding='utf8') as file:
             json_str = json.dumps(data, indent=4, ensure_ascii=False)
             file.write(json_str)
@@ -210,12 +224,12 @@ class Idiot:
     # прочитать данные из файла
     def load_data(self):
         fields = ['cards_deck', 'user_range', 'comp_range', 'card_types', 'set_cards', 'set_count']
-        with open(self.data_source) as file:
-            data = json.load(file)
+        with open(self.data_source, encoding='utf-8') as file:
+            data = json.load(file, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
 
         for field in fields:
-            setattr(__class__, field, data['field'])
-            print('[load data]', getattr(__class__, field))
+            setattr(__class__, field, data[field])
+
         return True
 
 
