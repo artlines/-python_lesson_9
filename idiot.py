@@ -1,6 +1,4 @@
 import random
-import json
-import requests
 
 
 class Idiot:
@@ -26,7 +24,6 @@ class Idiot:
 
     # ход игрока
     def user_step(self):
-        self.set_cards.clear()
 
         if len(self.user_range['cards'].keys()) == 0:
             print("___!!!__Вы выиграли!__!!!___")
@@ -40,30 +37,38 @@ class Idiot:
         for x, y in self.actions.items():
             print(f"{x} - {y}")
 
-        step = input('\nВаш ход: выберите карту по номеру или действие ')
+        set_action = 'Ваш ход' if self.user_range['active'] else 'Вы отбиваетесь'
+        step = input(f'\n{set_action}: выберите карту по номеру или действие ')
 
         # обработка ввода
         if step == 'n':
             if len(self.set_cards.keys()) > 0:
-                self.set_cards.clear()
                 print('__Бито, следующий ход__')
+                self.set_cards.clear()
                 return self.user_step()
             else:
                 raise Exception('Нет карт для сброса')
         elif step == 't':
             if len(self.set_cards.keys()) > 0:
-                self.user_range['cards'] = {**self.user_range['cards'], **self.set_cards}
                 print('__Взял__', self.user_range['cards'])
+                comp_card = self.set_cards[f'comp_{self.set_count}']
+                self.user_range['cards'].update({self.set_count: comp_card})
+                self.set_cards.clear()
                 return self.comp_step()
             else:
                 raise Exception('Нет карт к принятию')
         elif step.isdigit():
             key = int(step)
             if key in list(self.user_range['cards'].keys()):
-                # извлечь из моей колоды карту
                 self.set_cards[f"user_{self.set_count}"] = self.user_range['cards'].pop(key, None)
                 print('__Вы сходили картой__', self.set_cards)
-                return self.comp_step()
+                # Пользователь отбивается или ходит
+                if self.user_range['active']:
+                    return self.comp_step()
+                else:
+                    if self._check_step() and self._new_set_init():
+                        self.user_range['active'], self.comp_range['active'] = True, False
+                        return self.user_step()
             else:
                 raise Exception('У Вас нет такой карты!')
         else:
@@ -76,26 +81,39 @@ class Idiot:
             exit(8)
 
         print('\n__Ходит компьютер__')
-        user_card = self.set_cards[f'user_{self.set_count}']
         comp_cards = self.comp_range['cards']
-        user_card_type = user_card['name'][1]
-        user_card_quality = user_card['quality']
 
         try:
-            comp_card_answer = next(
-                x for x in comp_cards.values() if x['quality'] > user_card_quality and x['name'][1] == user_card_type
-            )
-            print('__Компьютер отбивается картой__', comp_card_answer)
-            self.set_cards[f"comp_{self.set_count}"] = comp_card_answer
-            print('__Карты кона__', self.set_cards)
-            self._check_step()
-            self.user_range['active'], self.comp_range['active'] = True, False
+            if self.user_range['active']:
+                user_card = self.set_cards[f'user_{self.set_count}']
+                user_card_type = user_card['name'][1]
+                user_card_quality = user_card['quality']
+
+                comp_card_answer = next(
+                    x for x in comp_cards.values() if
+                    x['quality'] > user_card_quality and x['name'][1] == user_card_type
+                )
+                print('__Компьютер отбивается картой__', comp_card_answer)
+                self.set_cards[f"comp_{self.set_count}"] = comp_card_answer
+                print('__Карты кона__', self.set_cards)
+                self._check_step()
+
             if self._new_set_init():
+                self.user_range['active'], self.comp_range['active'] = False, True
+                comp_card = random.choice(list(self.comp_range['cards'].keys()))
+                set_card_key = f"comp_{self.set_count}"
+                self.set_cards[set_card_key] = self.comp_range['cards'].pop(comp_card, None)
+                print('__Компьютер сходил картой__')
+                print(
+                    f'{self.set_cards[set_card_key]["name"][0]}'
+                    f' {self.set_cards[set_card_key]["name"][1]}'
+                    f' - {self.set_cards[set_card_key]["quality"]}\n'
+                )
+
                 return self.user_step()
         except StopIteration:
             print('__Нечем биться, компьютер берёт__')
-            comp_cards_count = len(self.comp_range['cards'].keys())
-            self.comp_range['cards'].update({comp_cards_count: user_card})
+            self.comp_range['cards'].update({self.set_count: user_card})
             if self._new_set_init():
                 return self.user_step()
         except Exception as e:
@@ -123,6 +141,7 @@ class Idiot:
         self.set_count += 1
         self._get_cards(self.user_range)
         self._get_cards(self.comp_range)
+        self.set_cards.clear()
 
         print('Мои карты: ', self.user_range)
         print('Карты компьютера: ', self.comp_range)
