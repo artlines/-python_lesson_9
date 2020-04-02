@@ -11,12 +11,14 @@ class Idiot:
     card_types = ['Черви', 'Бубны', 'Трефы', 'Пики']
     cards_quality = {'Шестёрка': 0, 'Семёрка': 1, 'Восьмёрка': 2, 'Девятка': 3, 'Десятка': 4, 'Валет': 5, 'Дама': 6,
                      'Король': 7, 'Туз': 8}
-    cards_count_set = 6  # по сколько карт сдаём
+    cards_count_set = 0  # по сколько карт сдаём
     set_cards = {}  # все карты кона
     set_count = 0  # какой по счёту кон
     data_source = 'data.json'
 
-    def __init__(self):
+    def __init__(self, count):
+        self.cards_count_set = count
+
         if os.path.exists(self.data_source) and os.path.getsize(self.data_source) > 0:
             self.load_data()
 
@@ -25,14 +27,7 @@ class Idiot:
 
         print('\n[Ход игры]', f'__Тусуем колоду, раскидываем картишки__\n')
         self._new_set_init()
-
         # @todo определить, кто ходит - найти в картах самый маленький козырь
-        try:
-            self.user_step()
-        except Exception as e:
-            print('[Ошибка]', e)
-            self.save_data()
-            exit(self.__EX_SOFTWARE__)
 
     # ход игрока
     def user_step(self):
@@ -53,37 +48,35 @@ class Idiot:
 
         # обработка ввода
         if step == 'n':
-            if len(self.set_cards.keys()) > 0:
-                print('[Ход игры]', '__Бито, следующий ход__')
-                self.set_cards.clear()
-                return self.user_step()
-            else:
+            if len(self.set_cards.keys()) == 0:
                 raise Exception('Нет карт для сброса')
+
+            print('[Ход игры]', '__Бито, следующий ход__')
+            self.set_cards.clear()
+            return self.user_step()
+
         elif step == 'd':
             print('[Ход игры]', "Игра закончена")
             open(self.data_source, 'w').close()
             exit(self.__EX_OK__)
+
         elif step == 't':
-            if len(self.set_cards.keys()) > 0:
-                print('__Взял__', self.user_range['cards'])
-                comp_card = self.set_cards[f'comp_{self.set_count}']
-                self.user_range['cards'].update({self.set_count: comp_card})
-                self.set_cards.clear()
-                return self.comp_step()
-            else:
+            if len(self.set_cards.keys()) == 0:
                 raise Exception('Нет карт к принятию')
+
+            print('__Взял__', self.user_range['cards'])
+            comp_card = self.set_cards[f'comp_{self.set_count}']
+            self.user_range['cards'].update({self.set_count: comp_card})
+            self.set_cards.clear()
+            return self.comp_step()
+
         elif step.isdigit():
             key = int(step)
             if key in list(self.user_range['cards'].keys()):
                 user_card = self.user_range['cards'].pop(key, None)
                 self.set_cards[f"user_{self.set_count}"] = user_card
-                print(
-                    '[Ход игры]',
-                    '__Вы сходили картой__',
-                    f'{user_card["name"][0]}'
-                    f' {user_card["name"][1]}'
-                    f' - {user_card["quality"]}\n'
-                )
+                self.print_step(user_card)
+
                 # Пользователь отбивается или ходит
                 if self.user_range['active']:
                     return self.comp_step()
@@ -92,7 +85,6 @@ class Idiot:
                         self.user_range['active'], self.comp_range['active'] = True, False
                         return self.user_step()
             else:
-                print(self.user_range['cards'])
                 raise Exception('У Вас нет такой карты!')
         else:
             raise Exception('Не нашлось доступного действия: пожалуйста, повторите')
@@ -116,13 +108,8 @@ class Idiot:
                     x for x in comp_cards.values() if
                     x['quality'] > user_card_quality and x['name'][1] == user_card_type
                 )
-                print(
-                    '[Ход игры]',
-                    '__Компьютер отбивается картой__',
-                    f'{comp_card_answer["name"][0]}'
-                    f' {comp_card_answer["name"][1]}'
-                    f' - {comp_card_answer["quality"]}\n'
-                )
+
+                self.print_step(comp_card_answer)
                 self.set_cards[f"comp_{self.set_count}"] = comp_card_answer
                 self._check_step()
 
@@ -132,11 +119,7 @@ class Idiot:
                 set_card_key = f"comp_{self.set_count}"
                 self.set_cards[set_card_key] = self.comp_range['cards'].pop(comp_card, None)
                 print('[Ход игры]', '__Компьютер сходил картой__')
-                print(
-                    f'{self.set_cards[set_card_key]["name"][0]}'
-                    f' {self.set_cards[set_card_key]["name"][1]}'
-                    f' - {self.set_cards[set_card_key]["quality"]}\n'
-                )
+                self.print_step(self.set_cards[set_card_key])
 
                 return self.user_step()
         except StopIteration:
@@ -232,5 +215,14 @@ class Idiot:
 
         return True
 
+    @staticmethod
+    def print_step(card):
+        print(
+            '[Ход игры]',
+            '__Вы сходили картой__',
+            f'{card["name"][0]}'
+            f' {card["name"][1]}'
+            f' - {card["quality"]}\n'
+        )
 
-i = Idiot()
+        return True
