@@ -2,6 +2,8 @@ from idiot import Idiot
 import pytest
 import mock
 import builtins
+import os
+
 
 class TestIdiot:
 
@@ -23,12 +25,11 @@ class TestIdiot:
         with pytest.raises(SystemExit):
             with mock.patch.object(builtins, 'input', lambda _: 'd'):
                 self.test_object.user_step()
+                assert os.path.exists(self.test_object.data_source) and os.path.getsize(self.test_object.data_source) == 0
 
-    def test_actions(self):
-        # with pytest.raises(TypeError):
+        with mock.patch.object(builtins, 'input', lambda _: 'n'):
+            assert self.test_object.set_cards == {}
+
+    def test__get_cards(self):
+        assert self
         pass
-
-# > 5 тестов, покрытие 100%, потестировать функции, порефакторить
-# coverage run file
-# coverage run --branch file
-# coverage report
