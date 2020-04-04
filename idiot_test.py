@@ -25,11 +25,22 @@ class TestIdiot:
         with pytest.raises(SystemExit):
             with mock.patch.object(builtins, 'input', lambda _: 'd'):
                 self.test_object.user_step()
-                assert os.path.exists(self.test_object.data_source) and os.path.getsize(self.test_object.data_source) == 0
+                assert os.path.exists(self.test_object.data_source) and os.path.getsize(
+                    self.test_object.data_source) == 0
 
         with mock.patch.object(builtins, 'input', lambda _: 'n'):
             assert self.test_object.set_cards == {}
 
-    def test__get_cards(self):
-        assert self
-        pass
+    def test_comp_step(self):
+        assert self.test_object.user_range['active'] == True
+        assert len(list(self.test_object.set_cards.keys())) == 0
+
+        with pytest.raises(SystemExit):
+            with mock.patch.object(builtins, 'input', lambda _: 'd'):
+                self.test_object.comp_step()
+                assert os.path.exists(self.test_object.data_source) and os.path.getsize(
+                    self.test_object.data_source) == 0
+
+        assert self.test_object.comp_range['active'] == True
+        assert len(list(self.test_object.set_cards.keys())) > 0
+

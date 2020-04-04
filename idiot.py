@@ -99,10 +99,11 @@ class Idiot:
 
         print('\n[Ход игры]', '__Ходит компьютер__')
         comp_cards = self.comp_range['cards']
+        card_key = f'user_{self.set_count}'
+        user_card = self.set_cards[card_key] if card_key in self.set_cards else False
 
         try:
-            if self.user_range['active']:
-                user_card = self.set_cards[f'user_{self.set_count}']
+            if self.user_range['active'] and user_card:
                 user_card_type = user_card['name'][1]
                 user_card_quality = user_card['quality']
 
